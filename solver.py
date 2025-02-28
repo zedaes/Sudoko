@@ -11,13 +11,22 @@ def load_sudokus(file_name):
     df = pd.read_csv(file_name)
     return df.to_dict(orient='list')
 
-def render_board(board):
-    """Creates a rich.Table object for displaying the Sudoku board."""
+def render_board(board, original_board, color_map):
+    """Creates a rich.Table object for displaying the Sudoku board with colors."""
     table = Table(show_header=False, show_lines=True)
     for _ in range(9):
         table.add_column(justify="center")
-    for row in board:
-        table.add_row(*[str(num) if num != 0 else "." for num in row])
+
+    for r in range(9):
+        row = []
+        for c in range(9):
+            num = board[r][c]
+            color = color_map[(r, c)]
+            if num == 0:
+                row.append(".")
+            else:
+                row.append(f"[{color}]{num}[/]")
+        table.add_row(*row)
     return table
 
 def is_valid(board, row, col, num):
@@ -33,8 +42,8 @@ def is_valid(board, row, col, num):
                 return False
     return True
 
-def solve_sudoku(board, progress, live):
-    """Backtracking Sudoku solver with live updates."""
+def solve_sudoku(board, original_board, color_map, progress, live):
+    """Backtracking Sudoku solver with real-time visualization."""
     empty = find_empty_location(board)
     if not empty:
         return True  # Solved
@@ -43,16 +52,18 @@ def solve_sudoku(board, progress, live):
     for num in range(1, 10):
         if is_valid(board, row, col, num):
             board[row][col] = num
-            progress.update(1)  # Manually update progress bar
-            live.update(render_board(board))  # Update board
+            color_map[(row, col)] = "green"
+            progress.update(1)  # Update progress bar
+            live.update(render_board(board, original_board, color_map))
 
-            if solve_sudoku(board, progress, live):
+            if solve_sudoku(board, original_board, color_map, progress, live):
                 return True
 
-            # Backtrack instantly
+            # Backtracking: Turn numbers red
             board[row][col] = 0
-            progress.update(-1)  # Decrease progress bar on backtrack
-            live.update(render_board(board))  # Update board
+            color_map[(row, col)] = "red"
+            progress.update(-1)  # Reduce progress
+            live.update(render_board(board, original_board, color_map))
 
     return False
 
@@ -75,11 +86,15 @@ def board_to_string(board):
 def sudoku_solver(sudoku_string):
     """Solves a Sudoku puzzle and returns the solved board as a string."""
     board = string_to_board(sudoku_string)
+    original_board = [row[:] for row in board]  # Copy original for color reference
     total_cells = sum(row.count(0) for row in board)
 
+    # Color map for tracking number updates
+    color_map = {(r, c): "blue" if original_board[r][c] != 0 else "white" for r in range(9) for c in range(9)}
+
     with tqdm(total=total_cells, desc="Solving Sudoku", bar_format="{l_bar}{bar} | {n_fmt}/{total_fmt} cells filled") as progress:
-        with Live(render_board(board), refresh_per_second=60) as live:
-            if solve_sudoku(board, progress, live):
+        with Live(render_board(board, original_board, color_map), refresh_per_second=60) as live:
+            if solve_sudoku(board, original_board, color_map, progress, live):
                 return board_to_string(board)
     return None
 
@@ -98,7 +113,7 @@ with tqdm(total=num_puzzles, desc="Solving all Sudokus", bar_format="{l_bar}{bar
         solved = sudoku_solver(puzzle)
 
         console.print("[bold green]✅ Solved board:[/bold green]")
-        console.print(render_board(string_to_board(solved)))
+        console.print(render_board(string_to_board(solved), string_to_board(puzzle), {(r, c): "blue" for r in range(9) for c in range(9)}))
 
         if solved == solution:
             console.print("[green]✅ Correct![/green]")
