@@ -97,7 +97,7 @@ def sudoku_solver(sudoku_string):
                 return board_to_string(board), stats
     return None, stats
 
-sudoku_data = load_sudokus('sudoku.csv')
+sudoku_data = load_sudokus('sudoku_short.csv')
 num_puzzles = len(sudoku_data['puzzle'])
 
 overall_stats = {"total_attempts": 0, "total_correct": 0, "total_backtracks": 0, "total_time": 0}
